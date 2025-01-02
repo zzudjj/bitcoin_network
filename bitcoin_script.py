@@ -2,14 +2,14 @@ from collections import deque
 from Cryptodome.Hash import SHA256, RIPEMD160
 from ecdsa import SigningKey, SECP256k1, VerifyingKey
 
-def get_script_sig(sig, pubkey):
+def get_script_sig(sig: str, pubkey: str) -> str:
     '''返回P2PKH模式下的解锁脚本'''
-    script_sig = [sig, pubkey]
+    script_sig = sig + " " + pubkey
     return script_sig
 
-def get_script_pubkey(pubkhash):
+def get_script_pubkey(pubk_hash: str) -> str:
     '''返回P2PKH模式下的锁定脚本'''
-    script_pubkey = ['OP_DUP', 'OP_HASH160', pubkhash, 'OP_EQUALVERIFY', 'OP_CHECKSIG']
+    script_pubkey = 'OP_DUP OP_HASH160 ' + pubk_hash + ' OP_EQUALVERIFY OP_CHECKSIG'
     return script_pubkey
 
 def execute_script(script_sig, script_pubkey):
