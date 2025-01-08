@@ -12,10 +12,10 @@ def get_script_pubkey(pubk_hash: str) -> str:
     script_pubkey = 'OP_DUP OP_HASH160 ' + pubk_hash + ' OP_EQUALVERIFY OP_CHECKSIG'
     return script_pubkey
 
-def execute_script(script_sig, script_pubkey):
+def execute_script(script_sig: str, script_pubkey: str, tx_hash: str) -> bool:
     '''执行脚本'''
-    script = script_sig + script_pubkey
-    stack = deque()
+    script = script_pubkey.split(' ')
+    stack = deque(script_sig.split(' '))
     for cmd in script:
         match cmd:
             case 'OP_DUP':
@@ -27,8 +27,8 @@ def execute_script(script_sig, script_pubkey):
             case 'OP_HASH160':
                 if len(stack) > 0:
                     top = str(stack.pop())
-                    top_sha256 = SHA256.new(top.encode('utf-8')).hexdigest()
-                    top_hash = RIPEMD160.new(top_sha256.encode('utf-8')).hexdigest()
+                    top_sha256 = SHA256.new(bytes.fromhex(top)).hexdigest()
+                    top_hash = RIPEMD160.new(bytes.fromhex(top_sha256)).hexdigest()
                     stack.append(top_hash)
                 else:
                     return False
@@ -42,12 +42,12 @@ def execute_script(script_sig, script_pubkey):
                     return False
             case 'OP_CHECKSIG':
                 if len(stack) > 1:
-                    pk = VerifyingKey(stack.pop())
+                    pk = VerifyingKey.from_string(bytes.fromhex(str(stack.pop())), curve=SECP256k1)
                     sig = stack.pop()
-                    if pubkey_hash1 != pubkey_hash2:
+                    is_vaild = pk.verify(bytes.fromhex(sig), bytes.fromhex(tx_hash))
+                    if not is_vaild:
                         return False
-                else: 
-                    return False
             case _ :
-                pass 
+                stack.append(cmd)
+    return True
             

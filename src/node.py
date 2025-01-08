@@ -18,3 +18,6 @@ outputs=[{'value': 5, 'pubk_hash': pubk2_hash}]
 transaction = create_transaction(inputs=inputs, outputs=outputs)
 #打印该交易的JSON格式
 print(transaction.to_json())
+
+s = "hello".encode()
+print(s)
