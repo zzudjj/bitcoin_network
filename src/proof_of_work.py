@@ -13,5 +13,15 @@ def pow(header: BlockHeader) -> tuple:
         if actual < target:
            break
         nonce += 1
+    print("")
     return (hash_result, nonce)
 
+def verify_pow(header: BlockHeader) -> bool:
+    target_bits = header.target_bits
+    target = 2 ** (256 - target_bits)
+    hash_result = header.hash()
+    actual = int(hash_result, 16)
+    if actual < target:
+        return True
+    else:
+        return False

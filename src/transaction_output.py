@@ -1,6 +1,6 @@
 class TransactionOutput:
     '''比特币交易输出类'''
-    def __init__(self, value: int, script_pubkey: str):
+    def __init__(self, value: float, script_pubkey: str):
         self.value = value #输出的比特币额
         self.script_pubkey = script_pubkey #锁定脚本
 

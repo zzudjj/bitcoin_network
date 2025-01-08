@@ -1,17 +1,19 @@
 from hashlib import sha256
 import json
 import pickle
-from typing import Dict, List, Union
+from typing import List
 from ecdsa import SigningKey, SECP256k1
-from bitcoin_script import get_script_pubkey, get_script_sig
+from bitcoin_script import get_script_pubkey, get_script_sig, execute_script
 from transaction_input import TransactionInput
 from transaction_output import TransactionOutput
 from coinbase_input import CoinbaseInput
 from wallet import Wallet
+from utxo import UTXOSet, UTXO
+from utils import get_pubkhash_from_address
 
 class Transaction:
     '''比特币交易类'''
-    def __init__(self, version: float, vin_sz: int, vout_sz: int, lock_time: int, inputs, outputs: List[TransactionOutput]):
+    def __init__(self, version: int, vin_sz: int, vout_sz: int, lock_time: int, inputs, outputs: List[TransactionOutput]):
         self.version = version  #版本
         self.vin_sz = vin_sz    #交易输入列表中交易数量
         self.vout_sz = vout_sz  #交易输出列表中交易数量
@@ -40,7 +42,7 @@ class Transaction:
 
     def is_coinbase(self) -> bool:
         """该交易是否是创币交易"""
-        return type(self.inputs) == CoinbaseInput
+        return type(self.inputs[0]) == CoinbaseInput
     
     def trimmed_copy(self) -> 'Transaction':
         """返回该交易修剪之后的复制实例"""
@@ -67,20 +69,91 @@ class Transaction:
             self.inputs[i].script_sig = get_script_sig(sig=signature, pubkey=tx_copy.inputs[i].script_sig)
             tx_copy.inputs[i].script_sig = None
 
-def create_transaction(version=1, lock_time=0, send: Wallet=None, to: List[str]=None, value: List[int]=None) -> Transaction:
+def create_transaction(version=1, lock_time=0, send: Wallet=None, to: List[str]=None, value: List[float]=None, utxo_set: UTXOSet=None) -> Transaction:
+    """创建一个普通交易"""
     if Wallet == None or to == None or len(to) == 0:
        print("交易创建出错")
-    pass
+    send_address = send.get_address()
+    pubkey = send.pubkey.to_string().hex()
+    #如果发送者并没有明确后面的一些接收者应该接收的金额，value将默认复制最后一个金额
+    while len(value) < len(to):
+        value.append(value[-1])
+    utxos_value_sum, utxos = utxo_set.find_utxo_by_address(address=send_address, value=sum(value))
+    inputs = []
+    for tx_id, index in utxos:
+        tx_in = TransactionInput(tx_id=tx_id, index=index, script_sig=pubkey)
+        inputs.append(tx_in)
+    if not inputs:  # 检查inputs是否为空
+        raise ValueError("没有足够的UTXO来创建交易")
+    outputs = []
+    for i in range(0, len(value)):
+        pubkey_hash = get_pubkhash_from_address(address=to[i])
+        script_pubkey = get_script_pubkey(pubk_hash=pubkey_hash)
+        tx_out = TransactionOutput(value=value[i], script_pubkey=script_pubkey)
+        outputs.append(tx_out)
+    if utxos_value_sum > sum(value):
+        change_value = utxos_value_sum - sum(value)
+        change_pubkhash = get_pubkhash_from_address(address=send_address)
+        change_script_pubkey = get_script_pubkey(pubk_hash=change_pubkhash)
+        change_tx_out = TransactionOutput(value=change_value, script_pubkey=change_script_pubkey)
+        outputs.append(change_tx_out)
+    tx = Transaction(version = version,
+                     vin_sz=len(inputs),
+                     vout_sz=len(outputs),
+                     lock_time=lock_time,
+                     inputs=inputs,
+                     outputs=outputs)
+    tx.sign(private_key=send.sigkey.to_string().hex())
+    return tx
 
+def create_coinbase_transaction(block_height: int, coinbase_str: str, to: str, value: float) -> Transaction:
+    """创建一个铸币交易"""
+    coinbase = CoinbaseInput(block_height=block_height, coinbase_str=coinbase_str)
+    pubkhash = get_pubkhash_from_address(address=to)
+    script_pubkey = get_script_pubkey(pubk_hash=pubkhash)
+    output = TransactionOutput(value=value, script_pubkey=script_pubkey)
+    outputs = [output]
+    coinbase_tx = Transaction(version=1,
+                              vin_sz=0,
+                              vout_sz=1,
+                              lock_time=0,
+                              inputs=[coinbase],
+                              outputs=outputs
+                              )
+    return coinbase_tx
 
-def verify_transaction(tx: Transaction) -> bool:
+def verify_transaction(tx: Transaction, utxo_set: UTXOSet) -> bool:
     '''验证交易'''
-    pass
-
-def deserialize_trasaction(data: bytes) -> Transaction:
+    if tx.is_coinbase():
+        return True
+    is_valid = True
+    utxos = utxo_set.find_utxo_by_vin(vin=tx.inputs)
+    tx_copy = tx.trimmed_copy()
+    for i in range(0, len(utxos)):
+        tx_copy.inputs[i].script_sig = tx.inputs[i].script_sig.split(' ')[1]
+        is_valid = is_valid and execute_script(script_sig=tx.inputs[i].script_sig, script_pubkey=utxos[i].script_pubkey, tx_hash=tx_copy.hash())
+        tx_copy.inputs[i].script_sig = None
+    input_value = 0
+    for utxo in utxos:
+        input_value += utxo.value
+    output_value = 0
+    for tx_out in tx.outputs:
+        output_value += tx_out.value
+    is_valid = is_valid and (input_value >= output_value)
+    return is_valid
+    
+def deserialize_transaction(data: bytes) -> Transaction:
     """反序列化为交易实例"""
-    data = pickle.loads(data)
+    return pickle.loads(data)
+
+def comfirm_tx(utxo_set: UTXOSet, transactions: List[str]):
+    """确认交易"""
+    for tx in transactions:
+        tx = deserialize_transaction(bytes.fromhex(tx))
+        utxo = UTXO(tx_id=tx.hash(), vout=tx.outputs)
+        utxo_set.add_utxo(utxo=utxo)
+        if not tx.is_coinbase():
+            utxo_set.remove_utxo_by_vin(vin=tx.inputs)
 
 
-        
-        
+

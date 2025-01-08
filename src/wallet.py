@@ -1,6 +1,9 @@
 from ecdsa import SigningKey, SECP256k1, VerifyingKey
 from Cryptodome.Hash import SHA256, RIPEMD160
+from utxo import UTXOSet
 import base58
+from utils import get_pubkhash_from_address
+import os  # 添加导入os模块
 
 VERSION = bytes.fromhex('00') #主网普通前缀
 
@@ -26,6 +29,12 @@ class Wallet:
         pubk_hash = RIPEMD160.new(bytes.fromhex(pubk_hash)).hexdigest()
         return pubk_hash
     
+    def get_balance(self, utxo_set: UTXOSet) -> float:
+        """获取当前比特币地址的余额"""
+        address = self.get_address()
+        return utxo_set.get_balance_by_address(address=address)
+
+    
 def validate_address(address: str) -> bool:
     """验证地址"""
     address = base58.b58decode(address)
@@ -40,6 +49,9 @@ def validate_address(address: str) -> bool:
 def load_wallet(dir: str) -> Wallet:
     """加载钱包"""
     wallet_list = []
+    if not os.path.exists(dir):  # 检查文件是否存在
+        with open(dir, 'w') as fp:  # 如果文件不存在则创建一个新的文件
+            pass
     with open(dir, "r") as fp:
         for line in fp:
             wallet_list = line.split(' ')
@@ -63,11 +75,4 @@ def new_key_pair() -> tuple:
     pubkey = sigkey.get_verifying_key()
     return (sigkey, pubkey)
 
-def get_pubkhash_from_address(address: str) -> str:
-    """根据比特币地址获取公钥哈希"""
-    address = base58.b58decode(address)
-    pubkhash = address[1:len(address)-4]
-    return pubkhash.hex()
 
-    
-    

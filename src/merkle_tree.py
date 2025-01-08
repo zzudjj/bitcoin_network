@@ -1,6 +1,5 @@
 from hashlib import sha256
 from typing import List
-from transaction import Transaction
 
 class MerkleTreeNode:
     """Merkle树节点"""
