@@ -58,7 +58,7 @@ def create_block(block_height: int, pre_block_hash: str, mem_pool: MemmoryPool, 
             break
     #计算交易费
     tx_fee = calculate_transaction_fee(transactions=transactions, utxo_set=utxo_set)
-    coinbase_tx = create_coinbase_transaction(block_height=block_height, to=address, coinbase_str=coinbase_str, value=50+tx_fee)
+    coinbase_tx = create_coinbase_transaction(block_height=block_height, to=address, coinbase_str=coinbase_str, tx_fee=tx_fee)
     transactions.append(coinbase_tx.serialize().hex())
     #计算默克尔树根哈希
     merkle_tree = MerkleTree(transactions=deepcopy(transactions))
@@ -79,7 +79,7 @@ def create_block(block_height: int, pre_block_hash: str, mem_pool: MemmoryPool, 
 
 def create_genesis_block(coinbase_str: str, to: str) -> Block:
     """创建一个创世区块"""
-    coinbase_tx = create_coinbase_transaction(block_height=0, to=to, coinbase_str=coinbase_str, value=50)
+    coinbase_tx = create_coinbase_transaction(block_height=0, to=to, coinbase_str=coinbase_str)
     transactions = [coinbase_tx.serialize().hex()]
     merkle_tree = MerkleTree(transactions=deepcopy(transactions))
     merkle_root_hash = merkle_tree.root_node.data

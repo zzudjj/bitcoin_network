@@ -11,6 +11,7 @@ from wallet import Wallet
 from utxo import UTXOSet, UTXO
 from utils import get_pubkhash_from_address
 from copy import deepcopy
+from reward import get_coinbase_reward
 
 class Transaction:
     '''比特币交易类'''
@@ -108,11 +109,12 @@ def create_transaction(send: Wallet, to: List[str], value: List[float], utxo_set
     tx.sign(private_key=send.sigkey.to_string().hex())
     return tx
 
-def create_coinbase_transaction(block_height: int, coinbase_str: str, to: str, value: float) -> Transaction:
+def create_coinbase_transaction(block_height: int, coinbase_str: str, to: str, tx_fee: float=0) -> Transaction:
     """创建一个铸币交易"""
     coinbase = CoinbaseInput(block_height=block_height, coinbase_str=coinbase_str)
     pubkhash = get_pubkhash_from_address(address=to)
     script_pubkey = get_script_pubkey(pubk_hash=pubkhash)
+    value = get_coinbase_reward(block_height=block_height) + tx_fee
     output = TransactionOutput(value=value, script_pubkey=script_pubkey)
     outputs = [output]
     coinbase_tx = Transaction(version=1,
