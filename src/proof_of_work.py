@@ -1,6 +1,7 @@
 from block_header import BlockHeader
 
 def pow(header: BlockHeader) -> tuple:
+    """工作量证明"""
     target_bits = header.target_bits
     target = 2 ** (256 - target_bits)
     nonce = 0
@@ -17,6 +18,7 @@ def pow(header: BlockHeader) -> tuple:
     return (hash_result, nonce)
 
 def verify_pow(header: BlockHeader) -> bool:
+    """验证工作量证明"""
     target_bits = header.target_bits
     target = 2 ** (256 - target_bits)
     hash_result = header.hash()

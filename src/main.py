@@ -24,3 +24,11 @@ print(f"wallet2_balance: {wallet2.get_balance(utxo_set=utxo_set)}")
 block = create_block(block_height=2, coinbase_str="Hello Bitcoin!", pre_block_hash=block_chain.get_best_block_hash(), mem_pool=mem_pool, tx_num=1, utxo_set=utxo_set, address=wallet1.get_address())
 block_chain.add_block(block=block, utxo_set=utxo_set)
 print(f"wallet1_balance: {wallet1.get_balance(utxo_set=utxo_set)}")
+tx_last = block_chain.find_tx(tx_id=tx.inputs[0].tx_id)
+print(tx_last.to_json())
+print(tx_last.hash())
+for utxo in utxo_set.data:
+    print(utxo.tx_id)
+    for out in utxo.vout:
+        if out:
+            print(out.value)

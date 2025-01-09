@@ -10,6 +10,7 @@ from coinbase_input import CoinbaseInput
 from wallet import Wallet
 from utxo import UTXOSet, UTXO
 from utils import get_pubkhash_from_address
+from copy import deepcopy
 
 class Transaction:
     '''比特币交易类'''
@@ -130,6 +131,8 @@ def verify_transaction(tx: Transaction, utxo_set: UTXOSet) -> bool:
     utxos = utxo_set.find_utxo_by_vin(vin=tx.inputs)
     tx_copy = tx.trimmed_copy()
     for i in range(0, len(utxos)):
+        if utxos[i] == None:
+            return False
         tx_copy.inputs[i].script_sig = tx.inputs[i].script_sig.split(' ')[1]
         is_valid = is_valid and execute_script(script_sig=tx.inputs[i].script_sig, script_pubkey=utxos[i].script_pubkey, tx_hash=tx_copy.hash())
         tx_copy.inputs[i].script_sig = None
@@ -150,7 +153,7 @@ def comfirm_tx(utxo_set: UTXOSet, transactions: List[str]):
     """确认交易"""
     for tx in transactions:
         tx = deserialize_transaction(bytes.fromhex(tx))
-        utxo = UTXO(tx_id=tx.hash(), vout=tx.outputs)
+        utxo = UTXO(tx_id=tx.hash(), vout=deepcopy(tx.outputs))
         utxo_set.add_utxo(utxo=utxo)
         if not tx.is_coinbase():
             utxo_set.remove_utxo_by_vin(vin=tx.inputs)

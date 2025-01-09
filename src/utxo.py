@@ -25,6 +25,8 @@ class UTXOSet:
         utxo_value_sum = 0
         for utxo in self.data:
             for index, out in enumerate(utxo.vout):
+                if out == None:
+                    continue
                 l = out.script_pubkey.split(' ')
                 if pubk_hash == l[2]:
                     utxo_value_sum += out.value
@@ -41,11 +43,10 @@ class UTXOSet:
             index = tx_in.index
             for i in range(0, len(self.data)):
                 if self.data[i].tx_id == tx_id:
-                    del self.data[i].vout[index]
-                    if len(self.data[i].vout) == 0:
+                    self.data[i].vout[index] = None
+                    if all([x == None for x in self.data[i].vout]):
                         del_index.append(i)
-        for i in del_index:
-            del self.data[i]
+        self.data = [self.data[i] for i in range(0, len(self.data)) if i not in del_index]
     
     def find_utxo_by_vin(self, vin: List[TransactionInput]) -> List[TransactionOutput]:
         """根据tx_in从UTXO集合中获取utxo"""
@@ -65,6 +66,8 @@ class UTXOSet:
         utxo_value_sum = 0
         for utxo in self.data:
             for out in utxo.vout:
+                if out == None:
+                    continue
                 l = out.script_pubkey.split(' ')
                 if pubk_hash == l[2]:
                     utxo_value_sum += out.value

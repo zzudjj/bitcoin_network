@@ -2,7 +2,6 @@ from ecdsa import SigningKey, SECP256k1, VerifyingKey
 from Cryptodome.Hash import SHA256, RIPEMD160
 from utxo import UTXOSet
 import base58
-from utils import get_pubkhash_from_address
 import os  # 添加导入os模块
 
 VERSION = bytes.fromhex('00') #主网普通前缀
