@@ -70,7 +70,7 @@ class Transaction:
             self.inputs[i].script_sig = get_script_sig(sig=signature, pubkey=tx_copy.inputs[i].script_sig)
             tx_copy.inputs[i].script_sig = None
 
-def create_transaction(version=1, lock_time=0, send: Wallet=None, to: List[str]=None, value: List[float]=None, utxo_set: UTXOSet=None) -> Transaction:
+def create_transaction(send: Wallet, to: List[str], value: List[float], utxo_set: UTXOSet, version=1, lock_time=0, tx_fee=0.05) -> Transaction:
     """创建一个普通交易"""
     if Wallet == None or to == None or len(to) == 0:
        print("交易创建出错")
@@ -79,7 +79,7 @@ def create_transaction(version=1, lock_time=0, send: Wallet=None, to: List[str]=
     #如果发送者并没有明确后面的一些接收者应该接收的金额，value将默认复制最后一个金额
     while len(value) < len(to):
         value.append(value[-1])
-    utxos_value_sum, utxos = utxo_set.find_utxo_by_address(address=send_address, value=sum(value))
+    utxos_value_sum, utxos = utxo_set.find_utxo_by_address(address=send_address, value=sum(value)+tx_fee)
     inputs = []
     for tx_id, index in utxos:
         tx_in = TransactionInput(tx_id=tx_id, index=index, script_sig=pubkey)
@@ -92,8 +92,9 @@ def create_transaction(version=1, lock_time=0, send: Wallet=None, to: List[str]=
         script_pubkey = get_script_pubkey(pubk_hash=pubkey_hash)
         tx_out = TransactionOutput(value=value[i], script_pubkey=script_pubkey)
         outputs.append(tx_out)
-    if utxos_value_sum > sum(value):
-        change_value = utxos_value_sum - sum(value)
+    #找零
+    if utxos_value_sum > sum(value)+tx_fee:
+        change_value = utxos_value_sum - sum(value) - tx_fee
         change_pubkhash = get_pubkhash_from_address(address=send_address)
         change_script_pubkey = get_script_pubkey(pubk_hash=change_pubkhash)
         change_tx_out = TransactionOutput(value=change_value, script_pubkey=change_script_pubkey)

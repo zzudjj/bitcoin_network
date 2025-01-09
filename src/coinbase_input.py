@@ -27,18 +27,4 @@ class CoinbaseInput:
         # 将十六进制数据转换为整数（小端序）
         block_height = int.from_bytes(bytes.fromhex(block_height_hex), byteorder='little')
         return block_height
-
-    def get_coinbase_str(self):
-        """从 Coinbase 域中提取矿工自定义数据"""
-        # 提取区块高度的长度前缀
-        block_height_len = int(self.coinbase[:2], 16)  # 前2个字符是长度前缀
-        # 跳过区块高度部分
-        remaining_data = self.coinbase[2 + block_height_len * 2:]
-        # 提取矿工自定义数据的长度前缀
-        coinbase_str_len = int(remaining_data[:2], 16)  # 前2个字符是长度前缀
-        # 提取矿工自定义数据的十六进制数据
-        coinbase_str_hex = remaining_data[2:2 + coinbase_str_len * 2]
-        # 将十六进制数据转换为字符串
-        coinbase_str = bytes.fromhex(coinbase_str_hex).decode()
-        return coinbase_str
     

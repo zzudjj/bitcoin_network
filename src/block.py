@@ -33,14 +33,21 @@ class Block:
          """区块序列化"""
          return pickle.dumps(self)
     
+    def get_height(self) -> int:
+        """获得区块高度"""
+        if len(self.transactions) == 0:
+            return 0
+        coinbase_tx = deserialize_transaction(bytes.fromhex(self.transactions[0]))
+        return coinbase_tx.inputs[0].get_block_height()
+    
 def deserialize_block(data: bytes) -> Block:
     """区块反序列化"""
     return pickle.loads(data)
 
-def create_block(block_height: int, coinbase_str: str, pre_block_hash: str, mem_pool: MemmoryPool, tx_num: int, utxo_set: UTXOSet, address: str) -> Block:
+def create_block(block_height: int, pre_block_hash: str, mem_pool: MemmoryPool, utxo_set: UTXOSet, address: str, tx_num: int=5, coinbase_str: str="Hello Bitcoin!") -> Block:
     """创建一个区块"""
-    coinbase_tx = create_coinbase_transaction(block_height=block_height, to=address, coinbase_str=coinbase_str, value=50)
-    transactions = [coinbase_tx.serialize().hex()]
+    #从交易池中获取交易
+    transactions = []
     for _ in range(0, tx_num):
         tx = mem_pool.get_tx()
         if tx:
@@ -49,8 +56,14 @@ def create_block(block_height: int, coinbase_str: str, pre_block_hash: str, mem_
             transactions.append(tx)
         else:
             break
+    #计算交易费
+    tx_fee = calculate_transaction_fee(transactions=transactions, utxo_set=utxo_set)
+    coinbase_tx = create_coinbase_transaction(block_height=block_height, to=address, coinbase_str=coinbase_str, value=50+tx_fee)
+    transactions.append(coinbase_tx.serialize().hex())
+    #计算默克尔树根哈希
     merkle_tree = MerkleTree(transactions=deepcopy(transactions))
     merkle_root_hash = merkle_tree.root_node.data
+    #创建区块头
     block_header = BlockHeader(version=1, 
                                pre_block_hash=pre_block_hash, 
                                merkle_root_hash=merkle_root_hash, 
@@ -58,6 +71,7 @@ def create_block(block_height: int, coinbase_str: str, pre_block_hash: str, mem_
                                target_bits=18,
                                nonce=0
                                )
+    #计算工作量证明
     block_hash, nonce = pow(block_header)
     block_header.nonce = nonce
     block = Block(block_header=block_header, tx_num=len(transactions), transactions=transactions)
@@ -78,11 +92,25 @@ def create_genesis_block(coinbase_str: str, to: str) -> Block:
                                )
     block_hash, nonce = pow(block_header)
     block_header.nonce = nonce
-    print(len(transactions))
     block = Block(block_header=block_header, tx_num=len(transactions), transactions=transactions)
     return block
 
-
+def calculate_transaction_fee(transactions: List[str], utxo_set: UTXOSet) -> float:
+    """计算交易费"""
+    fee = 0
+    for tx in transactions:
+        tx = deserialize_transaction(bytes.fromhex(tx))
+        if tx.is_coinbase():
+            continue
+        input_value = 0
+        output_value = 0
+        utxos = utxo_set.find_utxo_by_vin(vin=tx.inputs)
+        for utxo in utxos:
+            input_value += utxo.value
+        for vout in tx.outputs:
+            output_value += vout.value
+        fee += input_value - output_value
+    return fee
 
 
 

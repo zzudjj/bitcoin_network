@@ -31,6 +31,14 @@ class BlockChain:
                     return tx
         return None
     
+    def find_block_by_hash(self, block_hash: str) -> Block:
+        """在区块链中寻找一个区块"""
+        for block in self.data:
+            block = deserialize_block(bytes.fromhex(block))
+            if block.block_header.hash() == block_hash:
+                return block
+        return None
+    
     def get_best_height(self) -> int:
         """获得最新区块高度"""
         return len(self.data) - 1
