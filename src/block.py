@@ -40,6 +40,9 @@ class Block:
         coinbase_tx = deserialize_transaction(bytes.fromhex(self.transactions[0]))
         return coinbase_tx.inputs[0].get_block_height()
     
+    def hash(self) -> str:
+        return self.block_header.hash()
+    
 def deserialize_block(data: bytes) -> Block:
     """区块反序列化"""
     return pickle.loads(data)
@@ -59,7 +62,7 @@ def create_block(block_height: int, pre_block_hash: str, mem_pool: MemmoryPool, 
     #计算交易费
     tx_fee = calculate_transaction_fee(transactions=transactions, utxo_set=utxo_set)
     coinbase_tx = create_coinbase_transaction(block_height=block_height, to=address, coinbase_str=coinbase_str, tx_fee=tx_fee)
-    transactions.append(coinbase_tx.serialize().hex())
+    transactions.insert(0, coinbase_tx.serialize().hex())
     #计算默克尔树根哈希
     merkle_tree = MerkleTree(transactions=deepcopy(transactions))
     merkle_root_hash = merkle_tree.root_node.data
