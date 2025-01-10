@@ -1,3 +1,4 @@
 /src/__pycache__/
 /block.db
 /utxo.db
+/data

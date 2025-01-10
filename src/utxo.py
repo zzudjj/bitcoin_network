@@ -91,6 +91,18 @@ class UTXOSet:
                 if pubk_hash == l[2]:
                     utxo_value_sum += out.value
         return utxo_value_sum
+    
+    def update_utxo_set(self, utxo_set: 'UTXOSet'):
+        """更新UTXO集合"""
+        for tx_id in utxo_set.db.getall():
+            self.db.set(tx_id, utxo_set.db.get(tx_id))
+    
+    def serialize(self) -> bytes:
+        return pickle.dumps(self)
+    
+    @staticmethod
+    def deserialize(data: bytes) -> 'UTXOSet':
+        return pickle.loads(data)
 
 def load_utxo_set(dir: str) -> UTXOSet:
     utxo_set = UTXOSet()

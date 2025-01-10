@@ -1,3 +1,4 @@
+import pickle
 from typing import List
 from block import create_genesis_block, Block, deserialize_block
 from transaction import verify_transaction, Transaction, comfirm_tx, deserialize_transaction
@@ -68,6 +69,28 @@ class BlockChain:
         """更新区块链"""
         self.last_block_hash, self.height = self.db.get('l') or (None, -1)
 
+    def update_all(self, new_chain: 'BlockChain'):
+        """更新整条区块链"""
+        self.db.deldb()
+        for key in new_chain.db.getall():
+            self.db.set(key, new_chain.db.get(key))
+        self.db.set('l', (new_chain.last_block_hash, new_chain.height))
+        self.update()
+    
+    def print_blocks(self) -> List[str]:
+        """打印区块链"""
+        next_hash = self.last_block_hash
+        blocks = []
+        while True:
+            block = self.db.get(next_hash)
+            block = deserialize_block(bytes.fromhex(block))
+            blocks.append(block.hash())
+            if block.get_height() == 0:
+                break
+            else:
+                next_hash = block.block_header.pre_block_hash
+        return blocks
+
 def create_block_chain(to: str, utxo_set: UTXOSet, dir: str, coinbase_str: str="Hello Bitcoin!") -> BlockChain:
     """创建创世区块并生成一个新的区块链"""
     block_chain = BlockChain()
@@ -84,6 +107,7 @@ def load_block_chain(dir: str) -> BlockChain:
     block_chain = BlockChain()
     block_chain.db = pickledb.load(dir, True)
     block_chain.update()
+    return block_chain
 
 def verify_block(block: Block, utxo_set: UTXOSet) -> bool:
     """验证区块"""

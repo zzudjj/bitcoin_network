@@ -49,7 +49,7 @@ def load_wallet(dir: str) -> Wallet:
     """加载钱包"""
     wallet_list = []
     if not os.path.exists(dir):  # 检查文件是否存在
-        with open(dir, 'w') as fp:  # 如果文件不存在则创建一个新的文件
+        with open(dir, 'w') as fp:
             pass
     with open(dir, "r") as fp:
         for line in fp:
