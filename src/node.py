@@ -40,20 +40,20 @@ class Node(threading.Thread):
     def send_data(self, to_node_id: int, message_type: str, data: str):
         """发送消息"""
         self.network.messages[to_node_id].append((self.node_id, message_type, data))
-        print(f"节点 {self.node_id} 发送 {message_type} 给节点 {to_node_id}")
+
 
     def process_message(self, sender_id: int, message_type: str, data: str):
         """处理消息"""
         if message_type == "transaction":
-            print(f"节点 {self.node_id} 收到来自节点 {sender_id} 的交易")
+            # print(f"节点 {self.node_id} 收到来自节点 {sender_id} 的交易")
             self.mem_pool.add_tx(deserialize_transaction(bytes.fromhex(data)))
         elif message_type == "block":
-            print(f"节点 {self.node_id} 收到来自节点 {sender_id} 的区块")
+            # print(f"节点 {self.node_id} 收到来自节点 {sender_id} 的区块")
             block = deserialize_block(bytes.fromhex(data))
             if verify_block(block=block, utxo_set=self.utxo_set):
                 self.block_chain.add_block(block=block, utxo_set=self.utxo_set)
         elif message_type == "version":
-            print(f"节点 {self.node_id} 收到来自节点 {sender_id} 的版本消息")
+            # print(f"节点 {self.node_id} 收到来自节点 {sender_id} 的版本消息")
             version_message = VersionMessage.deserialize(bytes.fromhex(data))
             if version_message.best_height > self.block_chain.get_best_height():
                 self.send_data(to_node_id=sender_id, message_type="getblocks", data="")
@@ -61,21 +61,22 @@ class Node(threading.Thread):
             elif version_message.best_height < self.block_chain.get_best_height():
                 self.broadcast_version()
         elif message_type == "getblocks":
-            print(f"节点 {self.node_id} 收到来自节点 {sender_id} 的获取区块消息")
+            # print(f"节点 {self.node_id} 收到来自节点 {sender_id} 的获取区块消息")
             self.send_data(to_node_id=sender_id, message_type="blocks", data=self.block_chain)
         elif message_type == "blocks":
-            print(f"节点 {self.node_id} 收到来自节点 {sender_id} 的区块消息")
+            # print(f"节点 {self.node_id} 收到来自节点 {sender_id} 的区块消息")
             new_chain = data
             self.block_chain.update_all(new_chain=new_chain)
         elif message_type == "getutxos":
-            print(f"节点 {self.node_id} 收到来自节点 {sender_id} 的获取UTXO消息")
+            # print(f"节点 {self.node_id} 收到来自节点 {sender_id} 的获取UTXO消息")
             self.send_data(to_node_id=sender_id, message_type="utxos", data=self.utxo_set)
         elif message_type == "utxos":
-            print(f"节点 {self.node_id} 收到来自节点 {sender_id} 的UTXO消息")
+            # print(f"节点 {self.node_id} 收到来自节点 {sender_id} 的UTXO消息")
             new_utxo_set = data
             self.utxo_set.update_utxo_set(utxo_set=new_utxo_set)
         elif message_type == "getbalance":
             print(f'地址{data}的比特余额:{self.utxo_set.get_balance_by_address(data)}')
+            self.send_data(to_node_id=sender_id, message_type="reply", data=True)        
         elif message_type == "create_tx":
             if data['tx_fee'] == None:
                 data['tx_fee'] = 0.05
@@ -83,31 +84,39 @@ class Node(threading.Thread):
             if tx:
                 self.mem_pool.add_tx(tx)
                 self.broadcast_transaction(tx.serialize().hex())
+                self.send_data(to_node_id=sender_id, message_type="reply", data=True)
         elif message_type == "get_tx":
             tx = self.block_chain.find_tx(data)
             if tx:
                 print(tx.to_json())
             else:
                 print('没有找到交易')
+            self.send_data(to_node_id=sender_id, message_type="reply", data=True) 
         elif message_type == "get_block":
             block = self.block_chain.find_block_by_hash(data)
             if block:
                 print(block.to_json())
             else:
                 print('没有找到区块')
+            self.send_data(to_node_id=sender_id, message_type="reply", data=True) 
         elif message_type == "get_best_height":
             print(f'最新区块高度为:{self.block_chain.get_best_height()}')
+            self.send_data(to_node_id=sender_id, message_type="reply", data=True) 
         elif message_type == "get_best_block_hash":
             print(f'最新区块哈希值为:{self.block_chain.get_best_block_hash()}')
+            self.send_data(to_node_id=sender_id, message_type="reply", data=True) 
         elif message_type == "create_block":
             block = create_block(block_height=self.block_chain.get_best_height()+1, pre_block_hash=self.block_chain.get_best_block_hash(), mem_pool=self.mem_pool, address=self.wallet.get_address(), utxo_set=self.utxo_set)
             if block:
                 self.block_chain.add_block(block=block, utxo_set=self.utxo_set)
                 self.broadcast_block(block.serialize().hex())
+                self.send_data(to_node_id=443, message_type="reply", data=True) 
         elif message_type == "list_address":
             print(self.wallet.get_address())
+            self.send_data(to_node_id=443, message_type="reply", data=True) 
         elif message_type == "print_blocks":
             print(self.block_chain.print_blocks())
+            self.send_data(to_node_id=sender_id, message_type="reply", data=True) 
 
     def init_data(self, dir):
         """初始化数据"""
@@ -134,11 +143,14 @@ class Network:
     def __init__(self):
         self.lock = threading.Lock()
         self.messages = {}  # 存储每个节点的消息队列
+        self.messages[443] = []  # 专门用于命令行的消息队列 
+        self.mp = {}
 
-    def register_node(self, node_id):
+    def register_node(self, node):
         """注册节点"""
         with self.lock:
-            self.messages[node_id] = []
+            self.messages[node.node_id] = []
+            self.mp[node.dir] = node.node_id
 
     def broadcast(self, sender_id, message_type, data):
         """广播消息"""
@@ -176,7 +188,7 @@ class VersionMessage:
 def create_and_start_node(node_id: int, network: Network, dir: str):
     """模拟比特币网络"""
     node = Node(node_id=node_id, network=network, dir=dir)  # 确保传递正确的整数值
-    # 注册所有节点到网络
-    network.register_node(node_id)
-    # 启动所有节点
+    # 注册节点到网络
+    network.register_node(node)
+    # 启动节点
     node.start()
