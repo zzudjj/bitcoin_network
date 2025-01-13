@@ -71,7 +71,7 @@ def create_block(block_height: int, pre_block_hash: str, mem_pool: MemmoryPool, 
                                pre_block_hash=pre_block_hash, 
                                merkle_root_hash=merkle_root_hash, 
                                timestamp=time.time(), 
-                               target_bits=12,
+                               target_bits=10,
                                nonce=0
                                )
     #计算工作量证明
@@ -90,7 +90,7 @@ def create_genesis_block(coinbase_str: str, to: str) -> Block:
                                pre_block_hash='0'*64, 
                                merkle_root_hash=merkle_root_hash, 
                                timestamp=time.time(), 
-                               target_bits=12,
+                               target_bits=10,
                                nonce=0
                                )
     block_hash, nonce = pow(block_header)
