@@ -35,7 +35,6 @@ class Node(threading.Thread):
     def broadcast_version(self):
         """广播 version 消息"""
         self.network.broadcast(self.node_id, "version", VersionMessage(node_id=self.node_id, best_height=self.block_chain.get_best_height()).serlialize().hex())
-        print(f"节点 {self.node_id} 广播了版本消息: {self.block_chain.get_best_height()}")
 
     def send_data(self, to_node_id: int, message_type: str, data: str):
         """发送消息"""
@@ -50,8 +49,7 @@ class Node(threading.Thread):
         elif message_type == "block":
             # print(f"节点 {self.node_id} 收到来自节点 {sender_id} 的区块")
             block = deserialize_block(bytes.fromhex(data))
-            if verify_block(block=block, utxo_set=self.utxo_set):
-                self.block_chain.add_block(block=block, utxo_set=self.utxo_set)
+            self.block_chain.add_block(block=block, utxo_set=self.utxo_set)
         elif message_type == "version":
             # print(f"节点 {self.node_id} 收到来自节点 {sender_id} 的版本消息")
             version_message = VersionMessage.deserialize(bytes.fromhex(data))
@@ -115,7 +113,10 @@ class Node(threading.Thread):
             print(self.wallet.get_address())
             self.send_data(to_node_id=443, message_type="reply", data=True) 
         elif message_type == "print_blocks":
-            print(self.block_chain.print_blocks())
+            blocks = self.block_chain.print_blocks()
+            blocks.reverse()
+            for block_hash in blocks:
+                print(block_hash)
             self.send_data(to_node_id=sender_id, message_type="reply", data=True) 
 
     def init_data(self, dir):
